@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 )
 
-const uploadDirectory string = "uploaded files"
+const (
+	uploadDirectory string = "uploaded files"
+	serverPort      string = "8000"
+)
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +48,7 @@ func main() {
 		}
 		defer multipartFile.Close()
 
-		fileExtension := strings.ToLower(filepath.Ext(multiPartFileHeader.Filename)) // Get file extension
+		// fileExtension := strings.ToLower(filepath.Ext(multiPartFileHeader.Filename)) // Get file extension
 		filename := multiPartFileHeader.Filename
 
 		//path := filepath.Join(".", "files") // Join filepath
@@ -57,7 +58,10 @@ func main() {
 			LogAndWriteStatusCode(w, http.StatusInternalServerError, "Error creating directory for file", err)
 			return
 		}
-		fullpath := uploadDirectory + "/" + filename + fileExtension // Combine to get a valid filepath
+		fullpath := uploadDirectory + "/" + filename /*+ fileExtension*/ // Combine to get a valid filepath
+		// Note to self: FileHeader.Filename contains the complete
+		// name of the file along with the extension
+		// So no need to combine here
 
 		filehandler, err := os.OpenFile(fullpath, os.O_WRONLY|os.O_CREATE, os.ModePerm) // Create file
 		if err != nil {
@@ -73,8 +77,8 @@ func main() {
 	})
 
 	go func() {
-		fmt.Println("----- Starting server on localhost:8000 -----")
-		log.Fatal(http.ListenAndServe(":8081", nil))
+		fmt.Printf("----- Starting server on localhost:%s -----", serverPort)
+		log.Fatal(http.ListenAndServe(":"+serverPort, nil))
 	}()
 
 	signalChan := make(chan os.Signal, 1)
