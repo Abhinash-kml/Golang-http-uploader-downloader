@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload with Progress and Speed</title>
+    <style>
+        /* Style the progress bar container */
+        #progressContainer {
+            width: 50%; /* Make the progress bar fill half the screen */
+            height: 20px;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 10px; /* Rounded corners for the container */
+            margin-top: 10px;
+            overflow: hidden;
+            margin-left: auto;
+            margin-right: auto; /* Center the progress bar horizontally */
+        }
+
+        /* Progress bar with continuous horizontal scrolling animation */
+        #progressBar {
+            width: 0;
+            height: 100%;
+            background: linear-gradient(45deg, #007bff 25%, rgba(255, 255, 255, 0.3) 25%, rgba(255, 255, 255, 0.3) 50%, #007bff 50%, #007bff 75%, rgba(255, 255, 255, 0.3) 75%, rgba(255, 255, 255, 0.3) 100%);
+            background-size: 40px 40px; /* Size of the stripes */
+            text-align: center;
+            color: white;
+            line-height: 20px; /* Center text vertically */
+            border-radius: 10px; /* Rounded corners */
+            transition: width 0.2s ease-in-out; /* Smooth transition for progress change */
+            animation: scrollAnimation 2s linear infinite; /* Continuous horizontal scrolling animation */
+        }
+
+        /* Keyframes for the scrolling animation */
+        @keyframes scrollAnimation {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 40px 40px;
+            }
+        }
+
+        /* Style for the upload speed display */
+        #uploadSpeed {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <p>Upload File</p>
+    <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" id="fileInput" required>
+        <button type="submit">Upload</button>
+    </form>
+
+    <!-- Progress bar container -->
+    <div id="progressContainer">
+        <div id="progressBar">0%</div>
+    </div>
+
+    <!-- Upload Speed display -->
+    <div id="uploadSpeed">Speed: 0 KB/s</div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const progressBar = document.getElementById('progressBar');
+        const uploadSpeedDisplay = document.getElementById('uploadSpeed');
+
+        form.onsubmit = function (event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const file = fileInput.files[0]; // Get the file
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file); // Append the file to the FormData object
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            let startTime = Date.now(); // Store the start time
+            let uploadedBytes = 0; // Track the number of uploaded bytes
+
+            // Update progress bar and calculate upload speed
+            xhr.upload.onprogress = function (event) {
+                if (event.lengthComputable) {
+                    const percent = (event.loaded / event.total) * 100;
+                    progressBar.style.width = percent + '%';
+                    progressBar.textContent = Math.round(percent) + '%';
+
+                    // Calculate the upload speed
+                    uploadedBytes = event.loaded;
+                    let elapsedTime = (Date.now() - startTime) / 1000; // Time in seconds
+                    let speed = uploadedBytes / elapsedTime; // Bytes per second
+
+                    // Convert speed to KB/s (kilobytes per second)
+                    let speedInKB = (speed / 1024).toFixed(2); // Convert bytes to KB
+                    uploadSpeedDisplay.textContent = `Speed: ${speedInKB} KB/s`;
+                }
+            };
+
+            // Handle success and error
+            xhr.onload = function () {
+                if (xhr.status == 200) {
+                    alert('File uploaded successfully!');
+                } else {
+                    alert('Error uploading file.');
+                }
+            };
+
+            xhr.onerror = function () {
+                alert('Request failed');
+            };
+
+            xhr.send(formData); // Send the FormData object
+        };
+    </script>
+</body>
+</html>
