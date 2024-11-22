@@ -39,6 +39,7 @@ func main() {
 		fileRequested := r.PathValue("name")
 		fmt.Println(fileRequested)
 
+		w.Header().Set("Content-Disposition", "attachment") // Force the requester's browser to download the file
 		http.ServeFile(w, r, uploadDirectory+"/"+fileRequested)
 	})
 
