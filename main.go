@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"local/models"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -15,6 +18,16 @@ const (
 	uploadDirectory string = "uploaded files"
 	serverPort      string = "8000"
 )
+
+// Allowed file extensions, more can be allwed dynamically via POST request
+var allowedFileExtensions = []string{
+	".jpeg",
+	".png",
+	".svg",
+	".txt",
+	".ini",
+	".json",
+}
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +61,13 @@ func main() {
 		}
 		defer multipartFile.Close()
 
-		// fileExtension := strings.ToLower(filepath.Ext(multiPartFileHeader.Filename)) // Get file extension
+		// Check if filetype is allowed
+		fileExtension := strings.ToLower(filepath.Ext(multiPartFileHeader.Filename)) // Get file extension
+		if !IsExtensionAllowed(fileExtension) {
+			http.Error(w, "Uploaded filetype not supported", http.StatusInternalServerError)
+			return
+		}
+
 		filename := multiPartFileHeader.Filename
 
 		//path := filepath.Join(".", "files") // Join filepath
@@ -76,6 +95,45 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/fileextension", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Only POST method is allowed on this route", http.StatusBadRequest)
+			return
+		}
+
+		opRequest := &models.OperationRequest{}
+		json.NewDecoder(r.Body).Decode(opRequest)
+
+		if opRequest.Operation == "add" {
+			allowedFileExtensions = append(allowedFileExtensions, opRequest.Value)
+			fmt.Println(allowedFileExtensions)
+		} else if opRequest.Operation == "remove" {
+			var extensionIndex uint
+			for index, value := range allowedFileExtensions {
+				if value == opRequest.Value {
+					extensionIndex = uint(index)
+					break
+				}
+			}
+
+			fmt.Println("Extensions before removal: ") // Log
+			fmt.Println(allowedFileExtensions)         // Log
+
+			newSlice := allowedFileExtensions[:extensionIndex]
+			newSlice = append(newSlice, allowedFileExtensions[extensionIndex+1:]...)
+			allowedFileExtensions = newSlice
+
+			fmt.Println("Extensions after removal: ") // Log
+			fmt.Println(allowedFileExtensions)        // Log
+		} else {
+			http.Error(w, "Please specify a valid operation between \"add\" or \"remove\". ", http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Success"))
+	})
+
 	go func() {
 		fmt.Printf("----- Starting server on localhost:%s -----", serverPort)
 		log.Fatal(http.ListenAndServe(":"+serverPort, nil))
@@ -89,6 +147,16 @@ func main() {
 	fmt.Println("----- Shutting down server, recieved signal: ", signal)
 
 	// Gracefully shutdown the server here
+}
+
+func IsExtensionAllowed(extension string) bool {
+	for _, val := range allowedFileExtensions {
+		if extension == val {
+			return true
+		}
+	}
+
+	return false
 }
 
 func LogAndWriteStatusCode(w http.ResponseWriter, statusCode int, message string, err error) {
