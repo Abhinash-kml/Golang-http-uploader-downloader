@@ -19,6 +19,8 @@ const (
 	serverPort      string = "8000"
 )
 
+var middlewares = []middlewares.Middleware{}
+
 // Allowed file extensions, more can be allwed dynamically via POST request
 var allowedFileExtensions = []string{
 	".jpeg",
